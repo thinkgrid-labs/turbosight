@@ -1,0 +1,76 @@
+{
+  "name": "@think-grid-labs/turbosight",
+  "version": "1.0.0",
+  "description": "Visual RSC boundary inspector for Next.js App Router. See exactly how much data crosses your server→client boundary in real time. Find LCP killers before Lighthouse does.",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "nextjs",
+    "react",
+    "rsc",
+    "performance",
+    "app-router",
+    "server-components",
+    "lighthouse",
+    "lcp",
+    "tbt",
+    "devtools",
+    "overlay",
+    "boundary",
+    "flight-stream"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_ORG/turbosight"
+  },
+  "homepage": "https://github.com/YOUR_ORG/turbosight#readme",
+  "bugs": {
+    "url": "https://github.com/YOUR_ORG/turbosight/issues"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.7",
+    "@vitest/coverage-v8": "^2.2.5",
+    "jsdom": "^26.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.2.5"
+  },
+  "dependencies": {
+    "tslib": "^2.8.1"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "sideEffects": false
+}

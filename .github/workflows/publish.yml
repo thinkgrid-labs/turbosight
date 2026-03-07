@@ -1,0 +1,145 @@
+name: Publish to npm
+
+# Triggers on a GitHub Release publish (tag like v1.0.0, v1.2.3-beta.0, etc.)
+# Manually dispatchable for pre-releases.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "npm dist-tag (e.g. latest, beta, next)"
+        required: true
+        default: latest
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # Guard: make sure CI passes before we publish
+  # ─────────────────────────────────────────────────────────────────
+  ci-check:
+    name: Verify CI status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: turbosight-swc-plugin
+
+      - name: Build and test SWC plugin
+        run: cargo test && cargo build --target wasm32-wasip1 --release
+        working-directory: turbosight-swc-plugin
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build overlay
+        run: npm ci && npm run build
+        working-directory: turbosight-react-overlay
+
+      - name: Typecheck overlay
+        run: npx tsc --noEmit
+        working-directory: turbosight-react-overlay
+
+  # ─────────────────────────────────────────────────────────────────
+  # Publish turbosight-react-overlay to npm
+  # ─────────────────────────────────────────────────────────────────
+  publish-overlay:
+    name: Publish turbosight-react-overlay
+    runs-on: ubuntu-latest
+    needs: ci-check
+    permissions:
+      contents: read
+      id-token: write  # required for npm provenance
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          # Scoped package? Change to:
+          # registry-url: https://registry.npmjs.org
+          # scope: '@turbosight'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbosight-react-overlay
+
+      - name: Build
+        run: npm run build
+        working-directory: turbosight-react-overlay
+
+      # Derive the dist-tag from the release tag or workflow input
+      # v1.0.0       → latest
+      # v1.0.0-beta.1 → beta
+      # v1.0.0-next.0 → next
+      - name: Determine dist-tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dist_tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif echo "${{ github.ref_name }}" | grep -qE '\-(beta|next|rc|alpha)'; then
+            PRE=$(echo "${{ github.ref_name }}" | sed 's/.*-\([a-zA-Z]*\).*/\1/')
+            echo "dist_tag=$PRE" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version to match release tag
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"  # strip leading 'v'
+          npm version "$VERSION" --no-git-tag-version
+        working-directory: turbosight-react-overlay
+
+      - name: Publish
+        run: npm publish --tag ${{ steps.tag.outputs.dist_tag }} --provenance --access public
+        working-directory: turbosight-react-overlay
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────
+  # Create a GitHub release summary
+  # ─────────────────────────────────────────────────────────────────
+  release-summary:
+    name: Post release summary
+    runs-on: ubuntu-latest
+    needs: publish-overlay
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Append install instructions to release notes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const version = tag.replace(/^v/, '');
+            const body = `
+            ## Install
+
+            \`\`\`bash
+            npm install turbosight-react-overlay@${version} --save-dev
+            \`\`\`
+
+            ## Changelog
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            `;
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: context.payload.release.id,
+              body: context.payload.release.body + body,
+            });
