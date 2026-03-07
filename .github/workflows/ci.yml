@@ -13,36 +13,33 @@ jobs:
   overlay:
     name: turbosight-react-overlay
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: turbosight-react-overlay
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-          cache-dependency-path: turbosight-react-overlay/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npm run typecheck -w @think-grid-labs/turbosight
 
       - name: Unit tests
-        run: npm test
+        run: npm test -w @think-grid-labs/turbosight
 
       - name: Build
-        run: npm run build
+        run: npm run build -w @think-grid-labs/turbosight
 
       - name: Assert dist exists
         run: |
-          test -f dist/index.js   || (echo "dist/index.js missing"   && exit 1)
-          test -f dist/index.cjs  || (echo "dist/index.cjs missing"  && exit 1)
-          test -f dist/index.d.ts || (echo "dist/index.d.ts missing" && exit 1)
+          test -f turbosight-react-overlay/dist/index.js   || (echo "dist/index.js missing"   && exit 1)
+          test -f turbosight-react-overlay/dist/index.cjs  || (echo "dist/index.cjs missing"  && exit 1)
+          test -f turbosight-react-overlay/dist/index.d.ts || (echo "dist/index.d.ts missing" && exit 1)
 
   # ─────────────────────────────────────────────────────────────────
   # SWC plugin — Rust build + tests
@@ -94,6 +91,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install Rust toolchain (for WASM plugin)
         uses: dtolnay/rust-toolchain@stable
@@ -109,16 +108,13 @@ jobs:
         run: cargo build --target wasm32-wasip1 --release
         working-directory: turbosight-swc-plugin
 
-      - name: Install overlay dependencies and build
-        run: npm ci && npm run build
-        working-directory: turbosight-react-overlay
-
-      - name: Install test-app dependencies
+      - name: Install all dependencies
         run: npm ci
-        working-directory: test-app
+
+      - name: Build overlay
+        run: npm run build -w @think-grid-labs/turbosight
 
       - name: Build test-app
-        run: npm run build
-        working-directory: test-app
+        run: npm run build -w test-app
         env:
           NODE_ENV: production
