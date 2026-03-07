@@ -1,5 +1,5 @@
 {
-  "name": "@think-grid-labs/turbosight",
+  "name": "@ThinkGrid-Labs/turbosight",
   "version": "1.0.0",
   "description": "Visual RSC boundary inspector for Next.js App Router. See exactly how much data crosses your server→client boundary in real time. Find LCP killers before Lighthouse does.",
   "type": "module",
@@ -46,11 +46,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/think-grid-labs/turbosight"
+    "url": "https://github.com/ThinkGrid-Labs/turbosight"
   },
-  "homepage": "https://github.com/think-grid-labs/turbosight#readme",
+  "homepage": "https://github.com/ThinkGrid-Labs/turbosight#readme",
   "bugs": {
-    "url": "https://github.com/think-grid-labs/turbosight/issues"
+    "url": "https://github.com/ThinkGrid-Labs/turbosight/issues"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
