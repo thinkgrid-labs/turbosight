@@ -1,5 +1,5 @@
 {
-  "name": "@ThinkGrid-Labs/turbosight",
+  "name": "@think-grid-labs/turbosight",
   "version": "1.0.0",
   "description": "Visual RSC boundary inspector for Next.js App Router. See exactly how much data crosses your server→client boundary in real time. Find LCP killers before Lighthouse does.",
   "type": "module",

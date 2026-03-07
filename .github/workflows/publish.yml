@@ -1,10 +1,11 @@
 name: Publish to npm
 
-# Triggered automatically when release-it creates a GitHub Release.
+# Triggered automatically when a version tag (v*) is pushed.
 # Also manually dispatchable for pre-releases.
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -103,37 +104,31 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ─────────────────────────────────────────────────────────────────
-  # Create a GitHub release summary
+  # Create a GitHub Release from the pushed tag
   # ─────────────────────────────────────────────────────────────────
-  release-summary:
-    name: Post release summary
+  create-release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: publish-overlay
-    if: github.event_name == 'release'
+    if: github.event_name == 'push'
     permissions:
       contents: write
 
     steps:
-      - name: Append install instructions to release notes
+      - uses: actions/checkout@v4
+
+      - name: Create GitHub Release
         uses: actions/github-script@v7
         with:
           script: |
             const tag = context.ref.replace('refs/tags/', '');
             const version = tag.replace(/^v/, '');
-            const body = `
-            ## Install
-
-            \`\`\`bash
-            npm install @think-grid-labs/turbosight@${version} --save-dev
-            \`\`\`
-
-            ## Changelog
-
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-            `;
-            await github.rest.repos.updateRelease({
+            await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              release_id: context.payload.release.id,
-              body: context.payload.release.body + body,
+              tag_name: tag,
+              name: tag,
+              body: `## Install\n\n\`\`\`bash\nnpm install @think-grid-labs/turbosight@${version} --save-dev\n\`\`\`\n\nSee [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.`,
+              draft: false,
+              prerelease: tag.includes('-'),
             });
