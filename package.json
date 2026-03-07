@@ -12,6 +12,14 @@
     "dev:overlay": "npm run dev -w @think-grid-labs/turbosight",
     "dev:app": "npm run dev -w test-app",
     "test": "npm run test -w @think-grid-labs/turbosight",
-    "typecheck": "npm run typecheck -w @think-grid-labs/turbosight --if-present"
+    "typecheck": "npm run typecheck -w @think-grid-labs/turbosight --if-present",
+    "release": "release-it",
+    "release:dry": "release-it --dry-run",
+    "prepare": "lefthook install"
+  },
+  "devDependencies": {
+    "@release-it/conventional-changelog": "^8.0.0",
+    "lefthook": "^1.11.0",
+    "release-it": "^17.0.0"
   }
 }

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "packageFiles": ["turbosight-react-overlay/package.json"],
+  "bumpFiles": ["turbosight-react-overlay/package.json"],
+  "git": {
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}",
+    "requireCleanWorkingDir": true,
+    "requireBranch": "main"
+  },
+  "github": {
+    "release": true,
+    "releaseName": "v${version}",
+    "releaseNotes": null
+  },
+  "npm": {
+    "publish": false
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": {
+        "name": "angular"
+      },
+      "infile": "CHANGELOG.md",
+      "header": "# Changelog"
+    }
+  }
+}
