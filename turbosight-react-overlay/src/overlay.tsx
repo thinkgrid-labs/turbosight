@@ -8,7 +8,7 @@ import { useTurbosight } from './context';
  * Only mounted in development — never included in the production render tree.
  */
 const TurbosightOverlayInner: React.FC = () => {
-    const { boundaries, threshold } = useTurbosight();
+    const { boundaries, getBudget } = useTurbosight();
     const [boxes, setBoxes] = useState<Array<{ id: string; rect: DOMRect; name: string }>>([]);
 
     useEffect(() => {
@@ -54,7 +54,7 @@ const TurbosightOverlayInner: React.FC = () => {
             `}</style>
             {boxes.map((box) => {
                 const boundary = boundaries[box.id];
-                const isOverBudget = (boundary?.payloadSize || 0) > threshold;
+                const isOverBudget = (boundary?.payloadSize || 0) > getBudget(boundary.componentName);
                 const color = isOverBudget ? '#ff4d4f' : '#0096ff';
 
                 return (

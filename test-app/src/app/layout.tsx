@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { TurbosightProvider, TurbosightOverlay } from "@think-grid-labs/turbosight";
+import { TurbosightProvider, TurbosightOverlay, TurbosightPanel } from "@think-grid-labs/turbosight";
 import { TurbosightSetup } from "./turbosight-setup";
 
 const geistSans = Geist({
@@ -33,6 +33,7 @@ export default function RootLayout({
           <TurbosightSetup />
           {children}
           <TurbosightOverlay />
+          <TurbosightPanel />
         </TurbosightProvider>
       </body>
     </html>
