@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { TurbosightProvider, TurbosightOverlay, TurbosightPanel } from "@think-grid-labs/turbosight";
-import { TurbosightSetup } from "./turbosight-setup";
+import { Turbosight } from "@think-grid-labs/turbosight";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,12 +28,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TurbosightProvider>
-          <TurbosightSetup />
+        <Turbosight>
           {children}
-          <TurbosightOverlay />
-          <TurbosightPanel />
-        </TurbosightProvider>
+        </Turbosight>
       </body>
     </html>
   );

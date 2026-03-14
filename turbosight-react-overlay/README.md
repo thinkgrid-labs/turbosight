@@ -177,47 +177,26 @@ npm install @think-grid-labs/turbosight --save-dev
 npm install web-vitals --save-dev   # optional — enables Core Web Vitals correlation
 ```
 
-### 2. Wrap your root layout
+### 2. Add `<Turbosight>` to your root layout
 
 ```tsx
 // app/layout.tsx
-import { TurbosightProvider, TurbosightOverlay } from '@think-grid-labs/turbosight';
-import { TurbosightSetup } from './turbosight-setup'; // see step 3
+import { Turbosight } from '@think-grid-labs/turbosight';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <TurbosightProvider>
-          <TurbosightSetup />  {/* activates the RSC stream interceptor */}
+        <Turbosight>
           {children}
-          <TurbosightOverlay />  {/* the visual overlay, dev-only */}
-        </TurbosightProvider>
+        </Turbosight>
       </body>
     </html>
   );
 }
 ```
 
-### 3. Create the interceptor setup component
-
-```tsx
-// app/turbosight-setup.tsx
-"use client";
-import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
-
-export function TurbosightSetup() {
-  useFlightStreamInterceptor();
-  useWebVitals();   // optional — shows LCP/INP/CLS in the panel; remove if web-vitals not installed
-  return null;
-}
-```
-
-### 4. (Optional) Install the SWC plugin for zero-config wrapping
-
-Without the plugin, you must manually wrap your client components (see [Manual wrapping](#manual-wrapping)).
-
-#### Using `withTurbosight` (recommended)
+### 3. Enable the SWC plugin in `next.config.ts`
 
 ```ts
 // next.config.ts
@@ -228,28 +207,10 @@ export default withTurbosight({
 });
 ```
 
-`withTurbosight` automatically injects the SWC plugin entry and merges safely with any existing `experimental.swcPlugins` in your config.
+Run `next dev` — coloured borders appear around every `"use client"` component, and the panel shows up in the bottom-right corner.
 
-#### Manual plugin config
-
-```ts
-// next.config.ts
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  experimental: {
-    swcPlugins: [
-      ['@think-grid-labs/turbosight-swc-plugin', {}],
-    ],
-  },
-};
-
-export default nextConfig;
-```
-
-> **Note:** The WASM plugin must be published to npm or referenced by path. See [Building the plugin](#building-the-swc-plugin) for local development.
-
-That's it. Run `next dev` and you'll see coloured borders around every `"use client"` component.
+> **That's all.** No separate setup file, no manual component wrapping.
+> For custom layouts or advanced configuration see [Individual components](#individual-components) and [Configuring the Budget](#configuring-the-budget).
 
 ---
 
@@ -306,6 +267,31 @@ The wrapper uses the props size as an instant baseline. The interceptor refines 
 ---
 
 ## API Reference
+
+### `<Turbosight>` (recommended)
+
+All-in-one component. Wraps `TurbosightProvider`, activates the flight-stream interceptor and web vitals, and mounts the overlay and panel — everything in one import.
+
+```tsx
+import { Turbosight } from '@think-grid-labs/turbosight';
+
+<Turbosight>
+  {children}
+</Turbosight>
+```
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `threshold` | `number` | `51200` (50 KB) | Global budget in bytes. |
+| `budgets` | `Record<string, number>` | `{}` | Per-component budgets in bytes. |
+
+Dev-only — zero production overhead.
+
+---
+
+## Individual components
+
+Use these only if you need a custom layout (e.g. place the overlay outside a scroll container, conditionally exclude the panel, or call the hooks yourself).
 
 ### `<TurbosightProvider>`
 
@@ -490,6 +476,14 @@ The SWC plugin does this transformation automatically at compile time.
 
 The `<TurbosightPanel />` is a companion to the overlay — instead of scanning the page visually, it gives you a ranked list of every boundary sorted by payload size so you can immediately triage the worst offenders.
 
+The panel has three built-in tools:
+
+| Feature | How to use |
+|---|---|
+| **Snapshot / diff** | Click 📸 in the header, then navigate. Each boundary shows its size delta (`+62 KB` / `-2 KB`) vs the snapshot. Click ⟳ to clear. |
+| **Props inspector** | Click any boundary row to expand and see which individual props are contributing to the payload, sorted largest first. |
+| **History sparkline** | After 2+ navigations, each row shows a mini trend chart of the last 20 payload measurements. |
+
 ### What it looks like
 
 **Collapsed (default):**
@@ -499,53 +493,38 @@ The `<TurbosightPanel />` is a companion to the overlay — instead of scanning 
 ╰─────────────────────────────────────────────────╯
 ```
 
-**Expanded (click the pill):**
+**Expanded with snapshot active:**
 ```
-╭──────────────────────────────────────────────╮
-│  ⚡ Turbosight                    [1 ⚠️]  ✕  │
-├──────────────────────────────────────────────┤
-│  ● HeavyUserList      heavy-user-list.tsx    │  148.32 KB  ← red
-│  ● ProductGrid        product-grid.tsx       │   10.14 KB  ← blue
-│  ● UserStats          user-stats.tsx         │    0.82 KB  ← blue
-│  ● RecentActivity     recent-activity.tsx    │    0.44 KB  ← blue
-╰──────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────╮
+│  ⚡ Turbosight             [1 ⚠️]   📸→⟳   ✕    │
+├──────────────────────────────────────────────────┤
+│  Snapshot active — navigate to see size deltas.  │
+├──────────────────────────────────────────────────┤
+│  ▶ ● HeavyUserList   ~~~~  148.32 KB  +62.00 KB  │  ← red, sparkline, delta
+│  ▶ ● ProductGrid     ~~~~   10.14 KB   -2.00 KB  │
+│  ▶ ● UserStats              0.82 KB          ≈   │
+╰──────────────────────────────────────────────────╯
 ```
 
-- **Red dot** = over budget (uses per-component budget if configured, otherwise global `threshold`)
-- **Blue dot** = under budget
-- List is sorted largest → smallest — the worst boundary is always first
-- Components with no measurement yet show `— KB` and sort to the bottom
-
-### Setup
-
-Add `<TurbosightPanel />` to your root layout alongside `<TurbosightOverlay />`:
-
-```tsx
-// app/layout.tsx
-import { TurbosightProvider, TurbosightOverlay, TurbosightPanel } from '@think-grid-labs/turbosight';
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <TurbosightProvider>
-          <TurbosightSetup />
-          {children}
-          <TurbosightOverlay />
-          <TurbosightPanel />
-        </TurbosightProvider>
-      </body>
-    </html>
-  );
-}
+**Props inspector (click ▶ to expand a row):**
 ```
+│  ▼ ● HeavyUserList         148.32 KB             │
+│      Props                                        │
+│        users       →  141.20 KB                  │  ← red (> 10 KB)
+│        pagination  →    0.80 KB                  │  ← gray
+│        filters     →    6.32 KB                  │  ← amber (> 1 KB)
+```
+
+- **Red dot** = over budget; **Blue dot** = under budget
+- Prop colors: red > 10 KB, amber > 1 KB, gray otherwise
+- List is always sorted largest → smallest
 
 ### When to use the panel vs the overlay
 
 | Tool | Best for |
 |---|---|
 | **Overlay** | Spatial debugging — see exactly which part of the UI the boundary maps to |
-| **Panel** | Triage — quickly find the heaviest boundary without scrolling the page |
+| **Panel** | Triage — ranked list, snapshot diff, props drill-down |
 
 Both consume the same context data. Running them simultaneously has no additional overhead.
 
