@@ -9,6 +9,10 @@ export interface ComponentBoundary {
     componentName: string;
     payloadSize?: number; // Estimated flight stream payload size crossing boundary
     elementRef: HTMLElement | null;
+    /** Per-prop byte sizes, keyed by prop name. Set by __turbosight_wrap on mount. */
+    propsBreakdown?: Record<string, number>;
+    /** Last 20 payloadSize measurements, oldest first. Used for the sparkline. */
+    history: number[];
 }
 
 export type VitalRating = 'good' | 'needs-improvement' | 'poor';
@@ -23,8 +27,9 @@ export interface VitalMeasurement {
 
 interface TurbosightState {
     boundaries: Record<string, ComponentBoundary>;
-    registerBoundary: (id: string, boundary: Omit<ComponentBoundary, 'id'>) => void;
+    registerBoundary: (id: string, boundary: Omit<ComponentBoundary, 'id' | 'history'>) => void;
     updateBoundaryPayload: (id: string, size: number) => void;
+    updateBoundaryProps: (id: string, breakdown: Record<string, number>) => void;
     threshold: number;
     setThreshold: (val: number) => void;
     /** Per-component budgets. Falls back to threshold when a component has no entry. */
@@ -35,6 +40,10 @@ interface TurbosightState {
     vitals: Partial<Record<VitalName, VitalMeasurement>>;
     /** Called by useWebVitals to push a new measurement into context. */
     updateVital: (vital: VitalMeasurement) => void;
+    /** Snapshot of boundary payloadSizes taken at a point in time, keyed by boundary id. */
+    snapshot: Record<string, number> | null;
+    takeSnapshot: () => void;
+    clearSnapshot: () => void;
 }
 
 const TurbosightContext = createContext<TurbosightState | null>(null);
@@ -47,11 +56,12 @@ const TurbosightProviderDev: React.FC<{
     const [boundaries, setBoundaries] = useState<Record<string, ComponentBoundary>>({});
     const [threshold, setThreshold] = useState(initialThreshold);
     const [vitals, setVitals] = useState<Partial<Record<VitalName, VitalMeasurement>>>({});
+    const [snapshot, setSnapshot] = useState<Record<string, number> | null>(null);
 
-    const registerBoundary = useCallback((id: string, boundary: Omit<ComponentBoundary, 'id'>) => {
+    const registerBoundary = useCallback((id: string, boundary: Omit<ComponentBoundary, 'id' | 'history'>) => {
         setBoundaries((prev) => ({
             ...prev,
-            [id]: { id, ...boundary },
+            [id]: { id, history: [], ...boundary },
         }));
     }, []);
 
@@ -59,9 +69,21 @@ const TurbosightProviderDev: React.FC<{
         setBoundaries((prev) => {
             const existing = prev[id];
             if (!existing) return prev;
+            const history = [...(existing.history ?? []), size].slice(-20);
             return {
                 ...prev,
-                [id]: { ...existing, payloadSize: size },
+                [id]: { ...existing, payloadSize: size, history },
+            };
+        });
+    }, []);
+
+    const updateBoundaryProps = useCallback((id: string, breakdown: Record<string, number>) => {
+        setBoundaries((prev) => {
+            const existing = prev[id];
+            if (!existing) return prev;
+            return {
+                ...prev,
+                [id]: { ...existing, propsBreakdown: breakdown },
             };
         });
     }, []);
@@ -74,12 +96,28 @@ const TurbosightProviderDev: React.FC<{
         setVitals((prev) => ({ ...prev, [vital.name]: vital }));
     }, []);
 
+    const takeSnapshot = useCallback(() => {
+        setBoundaries((prev) => {
+            setSnapshot(
+                Object.fromEntries(
+                    Object.values(prev).map(b => [b.id, b.payloadSize ?? 0])
+                )
+            );
+            return prev;
+        });
+    }, []);
+
+    const clearSnapshot = useCallback(() => {
+        setSnapshot(null);
+    }, []);
+
     return (
         <TurbosightContext.Provider value={{
-            boundaries, registerBoundary, updateBoundaryPayload,
+            boundaries, registerBoundary, updateBoundaryPayload, updateBoundaryProps,
             threshold, setThreshold,
             budgets, getBudget,
             vitals, updateVital,
+            snapshot, takeSnapshot, clearSnapshot,
         }}>
             {children}
         </TurbosightContext.Provider>
@@ -112,12 +150,16 @@ export const useTurbosight = () => {
             boundaries: {} as Record<string, ComponentBoundary>,
             registerBoundary: () => { },
             updateBoundaryPayload: () => { },
+            updateBoundaryProps: () => { },
             threshold: 50 * 1024,
             setThreshold: () => { },
             budgets: {} as Record<string, number>,
             getBudget: (_: string) => 50 * 1024,
             vitals: {} as Partial<Record<VitalName, VitalMeasurement>>,
             updateVital: () => { },
+            snapshot: null,
+            takeSnapshot: () => { },
+            clearSnapshot: () => { },
         };
     }
     return context;

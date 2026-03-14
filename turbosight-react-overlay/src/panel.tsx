@@ -25,16 +25,71 @@ function formatVital(name: VitalName, value: number): string {
     return `${Math.round(value)}ms`;
 }
 
+function formatKB(bytes: number): string {
+    return `${(bytes / 1024).toFixed(2)} KB`;
+}
+
 // Which vitals to show and in what order
 const VITAL_ORDER: VitalName[] = ['LCP', 'INP', 'CLS', 'FCP', 'TTFB'];
 
+// --- Sparkline ---
+function Sparkline({ history, color }: { history: number[]; color: string }) {
+    if (history.length < 2) return null;
+    const W = 44, H = 16, pad = 1;
+    const min = Math.min(...history);
+    const max = Math.max(...history);
+    const range = max - min || 1;
+    const pts = history.map((v, i) => {
+        const x = pad + (i / (history.length - 1)) * (W - pad * 2);
+        const y = H - pad - ((v - min) / range) * (H - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return (
+        <svg width={W} height={H} style={{ flexShrink: 0, opacity: 0.75 }}>
+            <polyline
+                points={pts.join(' ')}
+                fill="none"
+                stroke={color}
+                strokeWidth="1.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+            />
+        </svg>
+    );
+}
+
+// --- Delta badge ---
+function DeltaBadge({ current, snapshotVal }: { current: number; snapshotVal: number }) {
+    const delta = current - snapshotVal;
+    if (Math.abs(delta) < 10) {
+        return <span style={{ color: '#555', fontSize: '10px', flexShrink: 0 }}>≈</span>;
+    }
+    const sign = delta > 0 ? '+' : '';
+    const color = delta > 0 ? COLOR_RED : COLOR_GREEN;
+    return (
+        <span style={{ color, fontSize: '10px', fontWeight: 700, flexShrink: 0 }}>
+            {sign}{formatKB(delta)}
+        </span>
+    );
+}
+
 const TurbosightPanelInner: React.FC = () => {
-    const { boundaries, getBudget, vitals } = useTurbosight();
+    const { boundaries, getBudget, vitals, snapshot, takeSnapshot, clearSnapshot } = useTurbosight();
     const [expanded, setExpanded] = useState(false);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
 
     const sorted = Object.values(boundaries).sort(
         (a, b) => (b.payloadSize ?? 0) - (a.payloadSize ?? 0)
     );
+
+    const q = search.trim().toLowerCase();
+    const filtered = q
+        ? sorted.filter(b =>
+            b.componentName.toLowerCase().includes(q) ||
+            b.fileName.toLowerCase().includes(q)
+        )
+        : sorted;
 
     const totalCount = sorted.length;
     const overBudget = sorted.filter(b => (b.payloadSize ?? 0) > getBudget(b.componentName)).length;
@@ -85,6 +140,15 @@ const TurbosightPanelInner: React.FC = () => {
         );
     }
 
+    const btnBase: React.CSSProperties = {
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        fontFamily: FONT_MONO,
+        lineHeight: 1,
+        padding: '2px 4px',
+    };
+
     return (
         <div style={wrapperStyle}>
             <div
@@ -93,8 +157,8 @@ const TurbosightPanelInner: React.FC = () => {
                     border: `1px solid ${COLOR_PANEL_BORDER}`,
                     borderRadius: '10px',
                     boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
-                    width: '340px',
-                    maxHeight: '500px',
+                    width: '360px',
+                    maxHeight: '540px',
                     display: 'flex',
                     flexDirection: 'column',
                     overflow: 'hidden',
@@ -127,23 +191,89 @@ const TurbosightPanelInner: React.FC = () => {
                             </span>
                         )}
                     </span>
-                    <button
-                        onClick={() => setExpanded(false)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#888',
-                            cursor: 'pointer',
-                            fontSize: '14px',
-                            lineHeight: 1,
-                            padding: '2px 4px',
-                            fontFamily: FONT_MONO,
-                        }}
-                        title="Collapse panel"
-                    >
-                        ✕
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                        {/* Snapshot button */}
+                        <button
+                            onClick={snapshot ? clearSnapshot : takeSnapshot}
+                            title={snapshot ? 'Clear snapshot' : 'Take snapshot — then navigate to compare sizes'}
+                            style={{
+                                ...btnBase,
+                                color: snapshot ? COLOR_AMBER : '#888',
+                                fontSize: '13px',
+                            }}
+                        >
+                            {snapshot ? '⟳' : '📸'}
+                        </button>
+                        <button
+                            onClick={() => setExpanded(false)}
+                            style={{ ...btnBase, color: '#888', fontSize: '14px' }}
+                            title="Collapse panel"
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
+
+                {/* Search */}
+                <div style={{
+                    padding: '6px 14px',
+                    borderBottom: `1px solid ${COLOR_PANEL_BORDER}`,
+                    flexShrink: 0,
+                    position: 'relative',
+                }}>
+                    <input
+                        type="text"
+                        placeholder="Filter boundaries…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        style={{
+                            width: '100%',
+                            background: 'rgba(255,255,255,0.06)',
+                            border: `1px solid ${COLOR_PANEL_BORDER}`,
+                            borderRadius: '6px',
+                            color: '#e0e0e0',
+                            fontFamily: FONT_MONO,
+                            fontSize: '11px',
+                            outline: 'none',
+                            padding: '4px 24px 4px 8px',
+                            boxSizing: 'border-box',
+                        }}
+                    />
+                    {search && (
+                        <button
+                            onClick={() => setSearch('')}
+                            style={{
+                                position: 'absolute',
+                                right: '18px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#666',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                lineHeight: 1,
+                                padding: 0,
+                            }}
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+
+                {/* Snapshot hint */}
+                {snapshot && (
+                    <div style={{
+                        padding: '5px 14px',
+                        background: `${COLOR_AMBER}12`,
+                        borderBottom: `1px solid ${COLOR_PANEL_BORDER}`,
+                        color: COLOR_AMBER,
+                        fontSize: '10px',
+                        flexShrink: 0,
+                    }}>
+                        Snapshot active — navigate to see size deltas. Click ⟳ to clear.
+                    </div>
+                )}
 
                 {/* Core Web Vitals section */}
                 {hasVitals && (
@@ -192,74 +322,143 @@ const TurbosightPanelInner: React.FC = () => {
 
                 {/* Boundary list */}
                 <div style={{ overflowY: 'auto', flex: 1, padding: '6px 0' }}>
-                    {sorted.length === 0 ? (
+                    {filtered.length === 0 ? (
                         <div style={{
                             color: '#666',
                             padding: '18px 16px',
                             textAlign: 'center',
                             fontSize: '12px',
                         }}>
-                            No boundaries registered yet.
+                            {sorted.length === 0 ? 'No boundaries registered yet.' : `No matches for "${search}"`}
                         </div>
                     ) : (
-                        sorted.map(boundary => {
+                        filtered.map(boundary => {
                             const isOver = (boundary.payloadSize ?? 0) > getBudget(boundary.componentName);
                             const color = isOver ? COLOR_RED : COLOR_BLUE;
                             const sizeKB = boundary.payloadSize != null
-                                ? `${(boundary.payloadSize / 1024).toFixed(2)} KB`
+                                ? formatKB(boundary.payloadSize)
                                 : '— KB';
                             const basename = boundary.fileName.split('/').pop() ?? boundary.fileName;
+                            const isExpanded = expandedId === boundary.id;
+                            const snapshotVal = snapshot?.[boundary.id];
+                            const hasBreakdown = boundary.propsBreakdown && Object.keys(boundary.propsBreakdown).length > 0;
 
                             return (
-                                <div
-                                    key={boundary.id}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        padding: '6px 14px',
-                                        gap: '10px',
-                                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                                    }}
-                                >
-                                    <span style={{
-                                        width: '8px',
-                                        height: '8px',
-                                        borderRadius: '50%',
-                                        background: color,
-                                        flexShrink: 0,
-                                        boxShadow: isOver ? `0 0 6px ${COLOR_RED}` : 'none',
-                                        display: 'inline-block',
-                                    }} />
+                                <div key={boundary.id}>
+                                    {/* Main row */}
+                                    <div
+                                        onClick={() => hasBreakdown && setExpandedId(isExpanded ? null : boundary.id)}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            padding: '6px 14px',
+                                            gap: '8px',
+                                            borderBottom: isExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)',
+                                            cursor: hasBreakdown ? 'pointer' : 'default',
+                                        }}
+                                    >
+                                        {/* Expand chevron */}
+                                        <span style={{
+                                            color: '#444',
+                                            fontSize: '9px',
+                                            flexShrink: 0,
+                                            width: '10px',
+                                            transition: 'transform 0.15s',
+                                            transform: isExpanded ? 'rotate(90deg)' : 'none',
+                                            visibility: hasBreakdown ? 'visible' : 'hidden',
+                                        }}>
+                                            ▶
+                                        </span>
 
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{
-                                            color: '#e0e0e0',
-                                            fontWeight: 600,
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}>
-                                            {boundary.componentName}
+                                        {/* Color dot */}
+                                        <span style={{
+                                            width: '8px',
+                                            height: '8px',
+                                            borderRadius: '50%',
+                                            background: color,
+                                            flexShrink: 0,
+                                            boxShadow: isOver ? `0 0 6px ${COLOR_RED}` : 'none',
+                                            display: 'inline-block',
+                                        }} />
+
+                                        {/* Name + file */}
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{
+                                                color: '#e0e0e0',
+                                                fontWeight: 600,
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                {boundary.componentName}
+                                            </div>
+                                            <div style={{
+                                                color: '#666',
+                                                fontSize: '11px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                            }}>
+                                                {basename}
+                                            </div>
                                         </div>
-                                        <div style={{
-                                            color: '#666',
-                                            fontSize: '11px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}>
-                                            {basename}
+
+                                        {/* Sparkline */}
+                                        <Sparkline history={boundary.history} color={color} />
+
+                                        {/* Size + delta */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0, gap: '1px' }}>
+                                            <span style={{ color, fontWeight: 700, fontSize: '12px' }}>
+                                                {sizeKB}
+                                            </span>
+                                            {snapshotVal != null && boundary.payloadSize != null && (
+                                                <DeltaBadge current={boundary.payloadSize} snapshotVal={snapshotVal} />
+                                            )}
                                         </div>
                                     </div>
 
-                                    <span style={{
-                                        color,
-                                        fontWeight: 700,
-                                        flexShrink: 0,
-                                        fontSize: '12px',
-                                    }}>
-                                        {sizeKB}
-                                    </span>
+                                    {/* Props breakdown (expanded) */}
+                                    {isExpanded && boundary.propsBreakdown && (
+                                        <div style={{
+                                            background: 'rgba(255,255,255,0.03)',
+                                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                            padding: '4px 14px 8px 32px',
+                                        }}>
+                                            <div style={{ color: '#555', fontSize: '10px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
+                                                Props
+                                            </div>
+                                            {Object.entries(boundary.propsBreakdown)
+                                                .sort(([, a], [, b]) => b - a)
+                                                .map(([key, bytes]) => (
+                                                    <div key={key} style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: '2px 0',
+                                                        gap: '8px',
+                                                    }}>
+                                                        <span style={{
+                                                            color: '#999',
+                                                            fontSize: '11px',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                        }}>
+                                                            {key}
+                                                        </span>
+                                                        <span style={{
+                                                            color: bytes > 10 * 1024 ? COLOR_RED : bytes > 1024 ? COLOR_AMBER : '#666',
+                                                            fontSize: '11px',
+                                                            fontWeight: 600,
+                                                            flexShrink: 0,
+                                                        }}>
+                                                            {formatKB(bytes)}
+                                                        </span>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })
@@ -272,9 +471,13 @@ const TurbosightPanelInner: React.FC = () => {
 
 /**
  * Floating HUD panel listing all registered RSC boundaries sorted by payload
- * size (largest first), with a Core Web Vitals section when useWebVitals() is
- * active. In production (NODE_ENV !== 'development') renders nothing — no
- * hooks, no event listeners, zero overhead.
+ * size (largest first), with:
+ * - 📸 Snapshot/diff: capture sizes, navigate, see deltas per boundary
+ * - ▶ Props inspector: click any row to see per-prop byte breakdown
+ * - Sparkline: mini chart of the last 20 size measurements per boundary
+ * - Core Web Vitals section when useWebVitals() is active
+ *
+ * In production (NODE_ENV !== 'development') renders nothing — zero overhead.
  *
  * Usage (root layout, inside TurbosightProvider):
  *   <TurbosightPanel />

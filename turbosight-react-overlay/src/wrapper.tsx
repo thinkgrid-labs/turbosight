@@ -24,7 +24,7 @@ export function __turbosight_wrap<P extends object>(
     const boundaryId = `${fileName}:${componentName}`;
 
     const TurbosightBoundary: React.FC<P> = (props) => {
-        const { registerBoundary, updateBoundaryPayload } = useTurbosight();
+        const { registerBoundary, updateBoundaryPayload, updateBoundaryProps } = useTurbosight();
         const wrapperRef = useRef<HTMLDivElement>(null);
 
         useEffect(() => {
@@ -39,16 +39,19 @@ export function __turbosight_wrap<P extends object>(
                 elementRef: targetElement,
             });
 
-            // Measure the serialized props size as a baseline estimate.
-            // This fires immediately on mount so the overlay shows a size even
-            // before the RSC flight-stream interceptor fires (e.g. on initial load).
-            // props is intentionally not in the dep array — we want a one-time
-            // snapshot at mount time; the interceptor refines this value later.
+            // Measure total serialized props size as a baseline estimate.
             const estimatedBytes = new TextEncoder().encode(JSON.stringify(props)).length;
             updateBoundaryPayload(boundaryId, estimatedBytes);
 
+            // Compute per-prop breakdown for the props inspector.
+            const breakdown: Record<string, number> = {};
+            for (const [key, value] of Object.entries(props as Record<string, unknown>)) {
+                breakdown[key] = new TextEncoder().encode(JSON.stringify(value)).length;
+            }
+            updateBoundaryProps(boundaryId, breakdown);
+
             // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [boundaryId, registerBoundary, updateBoundaryPayload]);
+        }, [boundaryId, registerBoundary, updateBoundaryPayload, updateBoundaryProps]);
 
         return (
             <div
