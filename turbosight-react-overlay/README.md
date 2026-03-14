@@ -82,7 +82,7 @@ No. Here is exactly what each piece does in a production build:
 
 | What you add | What runs in production |
 |---|---|
-| `<TurbosightProvider>` | Renders `<>{children}</>` directly — no state, no context, no overhead |
+| `<TurbosightProvider>` | Renders `<>{children}</>` directly — one React fragment, no state, no context |
 | `<TurbosightOverlay />` | Returns `null` immediately — **no hooks run**, no `MutationObserver`, no scroll/resize listeners |
 | `<TurbosightSetup />` (interceptor) | `useEffect` exits on line 1 — `window.fetch` is never patched |
 | `__turbosight_wrap(...)` (SWC plugin) | Returns the original component unchanged — the HOC is bypassed entirely |
@@ -168,22 +168,13 @@ The short version: **if Turbosight shows a red boundary, treat it as a mandatory
 
 ---
 
-## Packages
-
-| Package | Description |
-|---|---|
-| [`@think-grid-labs/turbosight`](./turbosight-react-overlay) | React overlay components, context, and flight-stream interceptor hook |
-| [`@think-grid-labs/turbosight-swc-plugin`](./turbosight-swc-plugin) | Rust/WASM SWC plugin that auto-wraps `"use client"` exports at compile time |
-| [`test-app`](./test-app) | Next.js 16 demo app with four real-world boundary scenarios |
-
----
-
 ## Quick Start
 
 ### 1. Install
 
 ```bash
 npm install @think-grid-labs/turbosight --save-dev
+npm install web-vitals --save-dev   # optional — enables Core Web Vitals correlation
 ```
 
 ### 2. Wrap your root layout
@@ -213,10 +204,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 ```tsx
 // app/turbosight-setup.tsx
 "use client";
-import { useFlightStreamInterceptor } from '@think-grid-labs/turbosight';
+import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
 
 export function TurbosightSetup() {
   useFlightStreamInterceptor();
+  useWebVitals();   // optional — shows LCP/INP/CLS in the panel; remove if web-vitals not installed
   return null;
 }
 ```
@@ -225,7 +217,20 @@ export function TurbosightSetup() {
 
 Without the plugin, you must manually wrap your client components (see [Manual wrapping](#manual-wrapping)).
 
-Add the plugin to `next.config.ts`:
+#### Using `withTurbosight` (recommended)
+
+```ts
+// next.config.ts
+import { withTurbosight } from '@think-grid-labs/turbosight/next';
+
+export default withTurbosight({
+  // your existing Next.js config
+});
+```
+
+`withTurbosight` automatically injects the SWC plugin entry and merges safely with any existing `experimental.swcPlugins` in your config.
+
+#### Manual plugin config
 
 ```ts
 // next.config.ts
@@ -308,7 +313,11 @@ Wraps your app. Must be a parent of all client components you want to track.
 
 ```tsx
 <TurbosightProvider
-  threshold={50 * 1024}  // bytes before a boundary is flagged red. Default: 50KB
+  threshold={50 * 1024}   // global budget — default: 50KB
+  budgets={{
+    UserAvatar:  2 * 1024,   // 2KB per-component override
+    DataTable:  30 * 1024,   // 30KB per-component override
+  }}
 >
   {children}
 </TurbosightProvider>
@@ -316,7 +325,45 @@ Wraps your app. Must be a parent of all client components you want to track.
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `threshold` | `number` | `51200` (50 KB) | Budget in bytes. Boundaries over this are flagged red. |
+| `threshold` | `number` | `51200` (50 KB) | Global budget in bytes. Applied to any component without a `budgets` entry. |
+| `budgets` | `Record<string, number>` | `{}` | Per-component budgets in bytes, keyed by **component name**. Overrides `threshold` for named components. |
+
+---
+
+### `<TurbosightPanel>`
+
+Floating HUD panel that lists all registered boundaries ranked by payload size. Collapsed by default — click the pill to expand.
+
+```tsx
+<TurbosightPanel />
+```
+
+No props. Place inside `<TurbosightProvider>`, alongside `<TurbosightOverlay />`.
+
+Dev-only — returns `null` in production automatically.
+
+---
+
+### `withTurbosight(nextConfig, options?)`
+
+Next.js config helper. Injects the SWC plugin into `experimental.swcPlugins` and merges with your existing config. Import from the `/next` subpath — this module has no React dependency and is safe to import in `next.config.ts`.
+
+```ts
+import { withTurbosight } from '@think-grid-labs/turbosight/next';
+
+// Basic usage
+export default withTurbosight(nextConfig);
+
+// With a custom WASM path (local development / monorepo)
+export default withTurbosight(nextConfig, {
+  pluginPath: '../turbosight-swc-plugin/target/wasm32-wasip1/release/turbosight_swc_plugin.wasm',
+});
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `pluginPath` | `string` | `'@think-grid-labs/turbosight-swc-plugin'` | Path or package name of the SWC WASM plugin. |
+| `pluginOptions` | `Record<string, unknown>` | `{}` | Options forwarded to the plugin. Reserved for future use. |
 
 ---
 
@@ -347,6 +394,29 @@ export function TurbosightSetup() {
   return null;
 }
 ```
+
+---
+
+### `useWebVitals()`
+
+Hook that subscribes to Core Web Vitals (LCP, INP, CLS, FCP, TTFB) via the [`web-vitals`](https://github.com/GoogleChrome/web-vitals) library and pushes measurements into `TurbosightContext`. The panel displays these alongside boundary sizes so you can correlate an oversized boundary with a degraded LCP or INP in the same view.
+
+**Requires** `web-vitals` to be installed (`npm install web-vitals --save-dev`). If not installed, a single warning is logged and nothing breaks.
+
+**Call this exactly once** — add it alongside `useFlightStreamInterceptor` in your `TurbosightSetup` component:
+
+```tsx
+"use client";
+import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
+
+export function TurbosightSetup() {
+  useFlightStreamInterceptor();
+  useWebVitals();
+  return null;
+}
+```
+
+Dev-only — exits immediately in production with zero overhead.
 
 ---
 
@@ -407,11 +477,151 @@ The SWC plugin does this transformation automatically at compile time.
 
 **When you see a red boundary, common fixes are:**
 
+
 1. **Paginate server-side** — pass only the current page, not the full dataset
 2. **Aggregate on the server** — reduce API/DB responses to summary data before passing
 3. **Pass IDs, fetch inside** — pass only IDs or slugs; fetch detail data inside the client component
 4. **Filter fields** — use `select` in your ORM, or destructure only needed fields from API responses
 5. **Move the component server-side** — if the component doesn't need interactivity, remove `"use client"`
+
+---
+
+## Dev Panel HUD
+
+The `<TurbosightPanel />` is a companion to the overlay — instead of scanning the page visually, it gives you a ranked list of every boundary sorted by payload size so you can immediately triage the worst offenders.
+
+### What it looks like
+
+**Collapsed (default):**
+```
+╭─────────────────────────────────────────────────╮
+│  ⚡ 4 boundaries | 1 ⚠️ over budget              │   ← bottom-right pill
+╰─────────────────────────────────────────────────╯
+```
+
+**Expanded (click the pill):**
+```
+╭──────────────────────────────────────────────╮
+│  ⚡ Turbosight                    [1 ⚠️]  ✕  │
+├──────────────────────────────────────────────┤
+│  ● HeavyUserList      heavy-user-list.tsx    │  148.32 KB  ← red
+│  ● ProductGrid        product-grid.tsx       │   10.14 KB  ← blue
+│  ● UserStats          user-stats.tsx         │    0.82 KB  ← blue
+│  ● RecentActivity     recent-activity.tsx    │    0.44 KB  ← blue
+╰──────────────────────────────────────────────╯
+```
+
+- **Red dot** = over budget (uses per-component budget if configured, otherwise global `threshold`)
+- **Blue dot** = under budget
+- List is sorted largest → smallest — the worst boundary is always first
+- Components with no measurement yet show `— KB` and sort to the bottom
+
+### Setup
+
+Add `<TurbosightPanel />` to your root layout alongside `<TurbosightOverlay />`:
+
+```tsx
+// app/layout.tsx
+import { TurbosightProvider, TurbosightOverlay, TurbosightPanel } from '@think-grid-labs/turbosight';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <TurbosightProvider>
+          <TurbosightSetup />
+          {children}
+          <TurbosightOverlay />
+          <TurbosightPanel />
+        </TurbosightProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### When to use the panel vs the overlay
+
+| Tool | Best for |
+|---|---|
+| **Overlay** | Spatial debugging — see exactly which part of the UI the boundary maps to |
+| **Panel** | Triage — quickly find the heaviest boundary without scrolling the page |
+
+Both consume the same context data. Running them simultaneously has no additional overhead.
+
+---
+
+## Core Web Vitals Correlation
+
+`useWebVitals()` connects RSC boundary sizes to real browser performance measurements. Once active, the panel gains a **Core Web Vitals** section at the top showing live metric values with color-coded ratings.
+
+### What it looks like
+
+```
+╭──────────────────────────────────────────────╮
+│  ⚡ Turbosight                    [1 ⚠️]  ✕  │
+├──────────────────────────────────────────────┤
+│  Core Web Vitals                             │
+│  [LCP 3.82s]  [INP 312ms]  [CLS 0.004]      │  ← red/amber/green badges
+│  ↑ Oversized boundaries may be contributing  │
+│    to poor vitals                            │
+├──────────────────────────────────────────────┤
+│  ● HeavyUserList      heavy-user-list.tsx    │  148.32 KB
+│  ● ProductGrid        product-grid.tsx       │   10.14 KB
+│  ...                                         │
+╰──────────────────────────────────────────────╯
+```
+
+Badge colors follow the official [Core Web Vitals thresholds](https://web.dev/articles/vitals):
+
+| Metric | Good | Needs improvement | Poor |
+|---|---|---|---|
+| **LCP** | < 2.5 s | 2.5 – 4 s | > 4 s |
+| **INP** | < 200 ms | 200 – 500 ms | > 500 ms |
+| **CLS** | < 0.1 | 0.1 – 0.25 | > 0.25 |
+| **FCP** | < 1.8 s | 1.8 – 3 s | > 3 s |
+| **TTFB** | < 800 ms | 800 ms – 1.8 s | > 1.8 s |
+
+### The correlation signal
+
+Turbosight cannot prove that a specific boundary *caused* a specific metric value — too many factors affect real-world vitals. What it does is show both pieces of information in the same view so you can make the connection yourself:
+
+> "My LCP is 3.8 s (poor) **and** I have a 148 KB boundary on this page. That boundary serialises ~148 KB into the RSC flight stream on every navigation, which inflates the HTML payload and delays the browser's ability to render the largest content."
+
+When both conditions are true simultaneously — an over-budget boundary **and** a poor LCP or INP — the panel shows the note: *"↑ Oversized boundaries may be contributing to poor vitals"*.
+
+### Metrics and what they connect to RSC boundaries
+
+| Metric | RSC connection |
+|---|---|
+| **LCP** | Large flight-stream payloads inflate the HTML or RSC fetch response, delaying the browser from painting the largest visible element |
+| **INP** | Hydrating large client components blocks the main thread, increasing interaction latency |
+| **CLS** | Usually unrelated to RSC payloads — useful context but not a direct signal |
+| **FCP** | Similar to LCP — large payloads delay first content |
+| **TTFB** | Reflects server response time, not RSC payload size |
+
+### Setup
+
+1. Install `web-vitals`:
+   ```bash
+   npm install web-vitals --save-dev
+   ```
+
+2. Add `useWebVitals()` to your `TurbosightSetup` component:
+   ```tsx
+   "use client";
+   import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
+
+   export function TurbosightSetup() {
+     useFlightStreamInterceptor();
+     useWebVitals();   // ← add this line
+     return null;
+   }
+   ```
+
+That's it. The panel vitals section appears automatically once the first metric fires (LCP fires after the page's largest element paints; INP fires after the first interaction).
+
+> **Note:** Vitals only report meaningful values in a real browser session — not in `next build` output or Lighthouse CI. For CI gating on Lighthouse scores, see the [Lighthouse CI integration](#roadmap) roadmap item.
 
 ---
 
@@ -554,13 +764,66 @@ npm run dev
 
 ## Configuring the Budget
 
-Set a custom threshold globally via `TurbosightProvider`:
+### Global threshold
+
+Set a single budget for all boundaries via `threshold` (default: 50 KB):
 
 ```tsx
 // Warn at 20 KB instead of the default 50 KB
 <TurbosightProvider threshold={20 * 1024}>
   {children}
 </TurbosightProvider>
+```
+
+### Per-component budgets
+
+Use the `budgets` prop to set different limits for individual components. The key is the **component function name** exactly as it appears in your source.
+
+```tsx
+<TurbosightProvider
+  threshold={50 * 1024}   // fallback for anything not listed below
+  budgets={{
+    UserAvatar:    2 * 1024,   //  2 KB — tiny profile card, should be minimal
+    ProductGrid:  15 * 1024,   // 15 KB — 10 products is acceptable
+    DataTable:    40 * 1024,   // 40 KB — intentionally data-heavy
+  }}
+>
+  {children}
+</TurbosightProvider>
+```
+
+Any component whose name is **not** in `budgets` falls back to the global `threshold`.
+
+### When to use per-component budgets
+
+| Scenario | Recommended approach |
+|---|---|
+| All components are similar in scope | Global `threshold` only — keep it simple |
+| Some components are legitimately data-heavy | Set a higher budget for those specific components so they don't create noise |
+| Some components should be very lean (avatars, pills, badges) | Set a tight budget (1–5 KB) so even small regressions are caught |
+| You want to enforce contracts between teams | Encode the agreed budget directly in `budgets` as a checked constraint |
+
+### Real-world example
+
+```tsx
+// app/layout.tsx
+<TurbosightProvider
+  threshold={50 * 1024}
+  budgets={{
+    // Presentational atoms — should never be bloated
+    Avatar:         1 * 1024,
+    StatusBadge:    1 * 1024,
+    PricingPill:    2 * 1024,
+
+    // Mid-weight interactive components
+    ProductCard:   10 * 1024,
+    CommentThread: 20 * 1024,
+
+    // Known heavy components — explicit allowance with a ceiling
+    ReportChart:   80 * 1024,
+    OrderHistory: 100 * 1024,
+  }}
+>
 ```
 
 ---
@@ -618,10 +881,11 @@ packages/
 
 | File | Responsibility |
 |---|---|
-| `context.tsx` | `TurbosightProvider` and `useTurbosight` hook |
+| `context.tsx` | `TurbosightProvider` and `useTurbosight` hook; `threshold` + `budgets` + `getBudget` |
 | `wrapper.tsx` | `__turbosight_wrap` HOC — measures props, registers boundaries |
-| `overlay.tsx` | Fixed-position visual overlay with boundary boxes |
+| `overlay.tsx` | Fixed-position visual overlay with per-component-aware boundary boxes |
 | `interceptor.ts` | `useFlightStreamInterceptor` — RSC wire protocol parser |
+| `panel.tsx` | `TurbosightPanel` — floating HUD listing boundaries ranked by size |
 
 **SWC plugin** (`turbosight-swc-plugin/src/lib.rs`):
 
@@ -646,11 +910,11 @@ cd test-app && npm run dev
 
 ## Roadmap
 
-- [ ] Dev panel / sidebar HUD with all boundaries listed and sorted by size
-- [ ] Per-component budget configuration via `<TurbosightProvider budgets={{ MyComp: 20 * 1024 }}>`
-- [ ] `@turbosight/next` convenience wrapper (`withTurbosight(nextConfig)`)
+- [x] Dev panel / sidebar HUD with all boundaries listed and sorted by size
+- [x] Per-component budget configuration via `<TurbosightProvider budgets={{ MyComp: 20 * 1024 }}>`
+- [x] `@turbosight/next` convenience wrapper (`withTurbosight(nextConfig)`)
 - [ ] Vite plugin for Remix and other RSC-capable frameworks
-- [ ] `web-vitals` integration — correlate boundary sizes with real LCP/INP measurements
+- [x] `web-vitals` integration — correlate boundary sizes with real LCP/INP measurements
 - [ ] Lighthouse CI integration — fail builds when a boundary exceeds budget
 - [ ] VS Code extension — inline annotations in the editor
 

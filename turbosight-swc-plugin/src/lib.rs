@@ -15,6 +15,7 @@ pub struct ExprExportVisitor {
 }
 
 impl ExprExportVisitor {
+    #[cfg(test)]
     fn new(filename: String) -> Self {
         Self { filename, is_client: false, wrapped: false }
     }
