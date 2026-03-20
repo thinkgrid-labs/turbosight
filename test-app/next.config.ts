@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
-import { withTurbosight } from "@think-grid-labs/turbosight/next";
+import { withTurbosight } from "@thinkgrid/turbosight/next";
 
 const nextConfig: NextConfig = {
   turbopack: {

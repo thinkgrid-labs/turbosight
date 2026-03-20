@@ -10,8 +10,8 @@
 
 | Package | Description |
 |---|---|
-| [`@think-grid-labs/turbosight`](./turbosight-react-overlay) | React overlay components, context, and flight-stream interceptor hook |
-| [`@think-grid-labs/turbosight-swc-plugin`](./turbosight-swc-plugin) | Rust/WASM SWC plugin that auto-wraps `"use client"` exports at compile time |
+| [`@thinkgrid/turbosight`](./turbosight-react-overlay) | React overlay components, context, and flight-stream interceptor hook |
+| [`@thinkgrid/turbosight-swc-plugin`](./turbosight-swc-plugin) | Rust/WASM SWC plugin that auto-wraps `"use client"` exports at compile time |
 | [`test-app`](./test-app) | Next.js demo app with four real-world boundary scenarios |
 
 ---

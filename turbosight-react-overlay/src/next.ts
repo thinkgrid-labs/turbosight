@@ -5,7 +5,7 @@ export interface TurbosightOptions {
      * Path to the Turbosight SWC plugin WASM file.
      *
      * - When using the npm-published plugin: omit this field (defaults to
-     *   `require.resolve('@think-grid-labs/turbosight-swc-plugin')`).
+     *   `require.resolve('@thinkgrid/turbosight-swc-plugin')`).
      * - When working in the monorepo with a locally compiled WASM:
      *   pass the relative path to the `.wasm` file.
      *
@@ -30,7 +30,7 @@ export interface TurbosightOptions {
  * @example
  * ```ts
  * // next.config.ts
- * import { withTurbosight } from '@think-grid-labs/turbosight/next';
+ * import { withTurbosight } from '@thinkgrid/turbosight/next';
  *
  * export default withTurbosight({
  *   // your existing Next.js config
@@ -49,7 +49,7 @@ export function withTurbosight(
     options: TurbosightOptions = {}
 ): NextConfig {
     const {
-        pluginPath = '@think-grid-labs/turbosight-swc-plugin',
+        pluginPath = '@thinkgrid/turbosight-swc-plugin',
         pluginOptions = {},
     } = options;
 

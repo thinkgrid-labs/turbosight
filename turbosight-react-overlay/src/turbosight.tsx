@@ -20,7 +20,7 @@ const TurbosightInit: React.FC = () => {
  *
  * ```tsx
  * // app/layout.tsx
- * import { Turbosight } from '@think-grid-labs/turbosight';
+ * import { Turbosight } from '@thinkgrid/turbosight';
  *
  * export default function RootLayout({ children }) {
  *   return (

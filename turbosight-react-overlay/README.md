@@ -3,14 +3,14 @@
 **Visual RSC boundary inspector for Next.js App Router.**
 Find performance leaks before Lighthouse does.
 
-[![npm version](https://img.shields.io/npm/v/%40think-grid-labs%2Fturbosight?color=blue&label=%40think-grid-labs%2Fturbosight)](https://www.npmjs.com/package/@think-grid-labs/turbosight)
+[![npm version](https://img.shields.io/npm/v/%40thinkgrid%2Fturbosight?color=blue&label=%40thinkgrid%2Fturbosight)](https://www.npmjs.com/package/@thinkgrid/turbosight)
 [![license](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-15%2B-black)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-18%2B-61dafb)](https://react.dev)
 
 > **Framework support note**
 > Turbosight works best with **Next.js App Router (13.4+)** — full automatic support via the SWC plugin, overlay, and RSC flight-stream interceptor.
-> The overlay library (`@think-grid-labs/turbosight`) also works with any React 18+ project using manual wrapping.
+> The overlay library (`@thinkgrid/turbosight`) also works with any React 18+ project using manual wrapping.
 > **Remix (RSC)** and **TanStack Start** are on the roadmap once their RSC implementations stabilise.
 > Next.js Pages Router and pure SPAs (Vite, CRA) are not supported — the RSC boundary problem does not exist in those architectures.
 
@@ -173,7 +173,7 @@ The short version: **if Turbosight shows a red boundary, treat it as a mandatory
 ### 1. Install
 
 ```bash
-npm install @think-grid-labs/turbosight --save-dev
+npm install @thinkgrid/turbosight --save-dev
 npm install web-vitals --save-dev   # optional — enables Core Web Vitals correlation
 ```
 
@@ -181,7 +181,7 @@ npm install web-vitals --save-dev   # optional — enables Core Web Vitals corre
 
 ```tsx
 // app/layout.tsx
-import { Turbosight } from '@think-grid-labs/turbosight';
+import { Turbosight } from '@thinkgrid/turbosight';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -200,7 +200,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```ts
 // next.config.ts
-import { withTurbosight } from '@think-grid-labs/turbosight/next';
+import { withTurbosight } from '@thinkgrid/turbosight/next';
 
 export default withTurbosight({
   // your existing Next.js config
@@ -224,7 +224,7 @@ Run `next dev` — coloured borders appear around every `"use client"` component
 │  ┌─────────────────────────────────────────────┐        │
 │  │ Detects "use client" directive               │        │
 │  │ Wraps export default with __turbosight_wrap  │        │
-│  │ Injects import from @think-grid-labs/turbosight │      │
+│  │ Injects import from @thinkgrid/turbosight │      │
 │  └─────────────────────────────────────────────┘        │
 │             │                                           │
 │             ▼                                           │
@@ -273,7 +273,7 @@ The wrapper uses the props size as an instant baseline. The interceptor refines 
 All-in-one component. Wraps `TurbosightProvider`, activates the flight-stream interceptor and web vitals, and mounts the overlay and panel — everything in one import.
 
 ```tsx
-import { Turbosight } from '@think-grid-labs/turbosight';
+import { Turbosight } from '@thinkgrid/turbosight';
 
 <Turbosight>
   {children}
@@ -335,7 +335,7 @@ Dev-only — returns `null` in production automatically.
 Next.js config helper. Injects the SWC plugin into `experimental.swcPlugins` and merges with your existing config. Import from the `/next` subpath — this module has no React dependency and is safe to import in `next.config.ts`.
 
 ```ts
-import { withTurbosight } from '@think-grid-labs/turbosight/next';
+import { withTurbosight } from '@thinkgrid/turbosight/next';
 
 // Basic usage
 export default withTurbosight(nextConfig);
@@ -348,7 +348,7 @@ export default withTurbosight(nextConfig, {
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `pluginPath` | `string` | `'@think-grid-labs/turbosight-swc-plugin'` | Path or package name of the SWC WASM plugin. |
+| `pluginPath` | `string` | `'@thinkgrid/turbosight-swc-plugin'` | Path or package name of the SWC WASM plugin. |
 | `pluginOptions` | `Record<string, unknown>` | `{}` | Options forwarded to the plugin. Reserved for future use. |
 
 ---
@@ -373,7 +373,7 @@ Hook that patches `window.fetch` to intercept RSC flight stream responses and at
 
 ```tsx
 "use client";
-import { useFlightStreamInterceptor } from '@think-grid-labs/turbosight';
+import { useFlightStreamInterceptor } from '@thinkgrid/turbosight';
 
 export function TurbosightSetup() {
   useFlightStreamInterceptor();
@@ -393,7 +393,7 @@ Hook that subscribes to Core Web Vitals (LCP, INP, CLS, FCP, TTFB) via the [`web
 
 ```tsx
 "use client";
-import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
+import { useFlightStreamInterceptor, useWebVitals } from '@thinkgrid/turbosight';
 
 export function TurbosightSetup() {
   useFlightStreamInterceptor();
@@ -412,7 +412,7 @@ Low-level HOC used by the SWC plugin. You only need this if you are **not** usin
 
 ```tsx
 "use client";
-import { __turbosight_wrap } from '@think-grid-labs/turbosight';
+import { __turbosight_wrap } from '@thinkgrid/turbosight';
 
 function MyComponent({ data }: { data: SomeType[] }) {
   return <div>...</div>;
@@ -431,7 +431,7 @@ If you cannot use the SWC plugin, wrap your client components manually:
 
 ```tsx
 "use client";
-import { __turbosight_wrap } from '@think-grid-labs/turbosight';
+import { __turbosight_wrap } from '@thinkgrid/turbosight';
 
 function Dashboard({ metrics }: { metrics: Metric[] }) {
   return <div>...</div>;
@@ -589,7 +589,7 @@ When both conditions are true simultaneously — an over-budget boundary **and**
 2. Add `useWebVitals()` to your `TurbosightSetup` component:
    ```tsx
    "use client";
-   import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
+   import { useFlightStreamInterceptor, useWebVitals } from '@thinkgrid/turbosight';
 
    export function TurbosightSetup() {
      useFlightStreamInterceptor();
@@ -712,7 +712,7 @@ swcPlugins: [
 From the `packages/` root:
 
 ```bash
-npm run build          # Build @think-grid-labs/turbosight
+npm run build          # Build @thinkgrid/turbosight
 npm run build:plugin   # Build the Rust WASM SWC plugin
 npm run dev            # Build overlay then start test-app dev server
 npm run dev:overlay    # Watch-rebuild the overlay library only
@@ -832,7 +832,7 @@ Any component whose name is **not** in `budgets` falls back to the global `thres
 | **Create React App / Vite SPA** | No server→client boundary; the problem doesn't apply |
 | **Next.js 13 before 13.4** | No `experimental.swcPlugins` API |
 
-> **Short answer:** Turbosight is built specifically for **Next.js App Router**. The visual overlay React library (`@think-grid-labs/turbosight`) works in any React 18+ project, but the flight-stream measurement only produces meaningful results when RSC is in use.
+> **Short answer:** Turbosight is built specifically for **Next.js App Router**. The visual overlay React library (`@thinkgrid/turbosight`) works in any React 18+ project, but the flight-stream measurement only produces meaningful results when RSC is in use.
 
 ### Runtime requirements
 
@@ -856,7 +856,7 @@ packages/
 └── test-app/                   # Next.js — integration test and demo
 ```
 
-**React library** (`@think-grid-labs/turbosight` → `turbosight-react-overlay/src/`):
+**React library** (`@thinkgrid/turbosight` → `turbosight-react-overlay/src/`):
 
 | File | Responsibility |
 |---|---|

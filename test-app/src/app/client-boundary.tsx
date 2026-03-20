@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useFlightStreamInterceptor } from "@think-grid-labs/turbosight";
+import { useFlightStreamInterceptor } from "@thinkgrid/turbosight";
 
 // The SWC plugin automatically wraps this export with __turbosight_wrap.
 // Do NOT manually call __turbosight_wrap here — the plugin handles it.
