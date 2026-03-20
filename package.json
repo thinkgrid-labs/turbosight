@@ -6,13 +6,13 @@
     "test-app"
   ],
   "scripts": {
-    "build": "npm run build -w @think-grid-labs/turbosight",
+    "build": "npm run build -w @thinkgrid/turbosight",
     "build:plugin": "cd turbosight-swc-plugin && cargo build --target wasm32-wasip1 --release",
-    "dev": "npm run build -w @think-grid-labs/turbosight && npm run dev -w test-app",
-    "dev:overlay": "npm run dev -w @think-grid-labs/turbosight",
+    "dev": "npm run build -w @thinkgrid/turbosight && npm run dev -w test-app",
+    "dev:overlay": "npm run dev -w @thinkgrid/turbosight",
     "dev:app": "npm run dev -w test-app",
-    "test": "npm run test -w @think-grid-labs/turbosight",
-    "typecheck": "npm run typecheck -w @think-grid-labs/turbosight --if-present",
+    "test": "npm run test -w @thinkgrid/turbosight",
+    "typecheck": "npm run typecheck -w @thinkgrid/turbosight --if-present",
     "release": "release-it",
     "release:dry": "release-it --dry-run",
     "prepare": "lefthook install"

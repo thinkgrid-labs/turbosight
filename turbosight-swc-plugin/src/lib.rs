@@ -213,7 +213,7 @@ fn make_import_decl() -> ModuleItem {
         })],
         src: Box::new(Str {
             span: swc_core::common::DUMMY_SP,
-            value: "@think-grid-labs/turbosight".into(),
+            value: "@thinkgrid/turbosight".into(),
             raw: None,
         }),
         type_only: false,
@@ -419,7 +419,7 @@ mod tests {
         "#,
         r#"
             "use client";
-            import { __turbosight_wrap } from "@think-grid-labs/turbosight";
+            import { __turbosight_wrap } from "@thinkgrid/turbosight";
             export default __turbosight_wrap(function MyComponent() {}, "test.tsx", "MyComponent");
         "#
     );
@@ -435,7 +435,7 @@ mod tests {
         "#,
         r#"
             "use client";
-            import { __turbosight_wrap } from "@think-grid-labs/turbosight";
+            import { __turbosight_wrap } from "@thinkgrid/turbosight";
             const App = () => "Hello";
             export default __turbosight_wrap(App, "test.tsx", "App");
         "#

@@ -15,7 +15,7 @@ import { useTurbosight } from './context';
  *
  * ```tsx
  * "use client";
- * import { useFlightStreamInterceptor, useWebVitals } from '@think-grid-labs/turbosight';
+ * import { useFlightStreamInterceptor, useWebVitals } from '@thinkgrid/turbosight';
  *
  * export function TurbosightSetup() {
  *   useFlightStreamInterceptor();

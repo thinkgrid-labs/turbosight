@@ -1,12 +1,9 @@
 commit-msg:
   commands:
     conventional-commit:
-      run: |
-        msg=$(cat {1})
-        echo "$msg" | grep -qE "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?(!)?: .{1,100}" \
-          || (echo "" && echo "  Commit message must follow Conventional Commits:" && echo "  <type>(<scope>): <subject>" && echo "" && echo "  Types: feat fix docs style refactor perf test build ci chore revert" && echo "  Example: feat(overlay): add threshold configuration" && echo "" && exit 1)
+      run: sh .lefthook/commit-msg/conventional-commit.sh {1}
 
 pre-push:
   commands:
     tests:
-      run: npm test -w @think-grid-labs/turbosight
+      run: npm test -w @thinkgrid/turbosight

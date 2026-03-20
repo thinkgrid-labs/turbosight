@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Turbosight } from "@think-grid-labs/turbosight";
+import { Turbosight } from "@thinkgrid/turbosight";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
