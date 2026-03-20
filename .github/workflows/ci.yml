@@ -27,13 +27,13 @@ jobs:
         run: npm ci
 
       - name: Typecheck
-        run: npm run typecheck -w @think-grid-labs/turbosight
+        run: npm run typecheck -w @thinkgrid/turbosight
 
       - name: Unit tests
-        run: npm test -w @think-grid-labs/turbosight
+        run: npm test -w @thinkgrid/turbosight
 
       - name: Build
-        run: npm run build -w @think-grid-labs/turbosight
+        run: npm run build -w @thinkgrid/turbosight
 
       - name: Assert dist exists
         run: |
@@ -112,7 +112,7 @@ jobs:
         run: npm ci
 
       - name: Build overlay
-        run: npm run build -w @think-grid-labs/turbosight
+        run: npm run build -w @thinkgrid/turbosight
 
       - name: Build test-app
         run: npm run build -w test-app

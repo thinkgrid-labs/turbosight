@@ -47,19 +47,19 @@ jobs:
         run: npm ci
 
       - name: Typecheck overlay
-        run: npm run typecheck -w @think-grid-labs/turbosight
+        run: npm run typecheck -w @thinkgrid/turbosight
 
       - name: Unit tests
-        run: npm test -w @think-grid-labs/turbosight
+        run: npm test -w @thinkgrid/turbosight
 
       - name: Build overlay
-        run: npm run build -w @think-grid-labs/turbosight
+        run: npm run build -w @thinkgrid/turbosight
 
   # ─────────────────────────────────────────────────────────────────
-  # Publish @think-grid-labs/turbosight to npm
+  # Publish @thinkgrid/turbosight to npm
   # ─────────────────────────────────────────────────────────────────
   publish-overlay:
-    name: Publish @think-grid-labs/turbosight
+    name: Publish @thinkgrid/turbosight
     runs-on: ubuntu-latest
     needs: ci-check
     permissions:
@@ -80,7 +80,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build -w @think-grid-labs/turbosight
+        run: npm run build -w @thinkgrid/turbosight
 
       # Derive the dist-tag from the release tag or workflow input
       # v1.0.0         → latest
@@ -128,7 +128,7 @@ jobs:
               repo: context.repo.repo,
               tag_name: tag,
               name: tag,
-              body: `## Install\n\n\`\`\`bash\nnpm install @think-grid-labs/turbosight@${version} --save-dev\n\`\`\`\n\nSee [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.`,
+              body: `## Install\n\n\`\`\`bash\nnpm install @thinkgrid/turbosight@${version} --save-dev\n\`\`\`\n\nSee [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.`,
               draft: false,
               prerelease: tag.includes('-'),
             });
